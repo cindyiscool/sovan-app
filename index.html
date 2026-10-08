@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sovan - Mental Health Companion</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <!-- Auth Modal: Sign Up / Login with Firebase Auth -->
+  <div id="authModal" class="modal">
+    <div class="modal-card">
+      <div class="logo-badge">🌸</div>
+      <h2>Welcome to Sovan</h2>
+      <p class="subtitle">Your private sanctuary for healing, listening, and quiet reflection.</p>
+      
+      <div class="auth-tabs">
+        <button id="tabLogin" class="tab-btn active">Log In</button>
+        <button id="tabRegister" class="tab-btn">Sign Up</button>
+      </div>
+
+      <form id="authForm">
+        <div class="form-group" id="nameGroup" style="display: none;">
+          <label for="userName">Preferred Name</label>
+          <input type="text" id="userName" placeholder="What should Tiểu Vân call you?">
+        </div>
+        <div class="form-group">
+          <label for="userEmail">Email</label>
+          <input type="email" id="userEmail" required placeholder="you@domain.com">
+        </div>
+        <div class="form-group">
+          <label for="userPass">Password</label>
+          <input type="password" id="userPass" required placeholder="••••••••" minlength="6">
+        </div>
+        <button type="submit" id="authSubmitBtn" class="btn primary-btn">Enter Safe Space</button>
+      </form>
+
+      <div class="divider"><span>or</span></div>
+      <button id="guestBtn" class="btn secondary-btn">Continue in Guest Sandbox</button>
+    </div>
+  </div>
+
+  <!-- Main Responsive Layout: Messenger Style -->
+  <div class="app-container">
+    <!-- Mobile Overlay for Sidebar Drawer -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Left Sidebar for Navigation and User Profile -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-icon">🌸</div>
+          <div>
+            <h1>Sovan</h1>
+            <span class="brand-tag">Mental Health Sanctuary</span>
+          </div>
+        </div>
+        <button class="close-sidebar-btn" id="closeSidebarBtn">✕</button>
+      </div>
+
+      <!-- User Profile / Space Card -->
+      <div class="user-card" id="userCard">
+        <div class="avatar" id="userAvatar">🌸</div>
+        <div class="user-info">
+          <h3 id="currentUserName">Vivian</h3>
+          <span class="user-status" id="currentUserEmail">vivian@sovan.local</span>
+        </div>
+        <button class="icon-btn" id="logoutBtn" title="Switch or Logout">🚪</button>
+      </div>
+
+      <!-- Navigation Items -->
+      <nav class="nav-menu">
+        <button class="nav-item active" data-view="chatView">
+          <span class="nav-icon">💬</span>
+          <span class="nav-label">Tiểu Vân Chat</span>
+        </button>
+        <button class="nav-item" data-view="secondBrainView">
+          <span class="nav-icon">🧠</span>
+          <span class="nav-label">Second Brain</span>
+        </button>
+        <button class="nav-item" data-view="voidView">
+          <span class="nav-icon">🌌</span>
+          <span class="nav-label">The Void (Wall)</span>
+        </button>
+        <button class="nav-item" data-view="moodView">
+          <span class="nav-icon">🌸</span>
+          <span class="nav-label">Mood Tracker</span>
+        </button>
+        <button class="nav-item" data-view="capsuleView">
+          <span class="nav-icon">⏳</span>
+          <span class="nav-label">Time Capsule</span>
+        </button>
+      </nav>
+
+      <!-- Sidebar Footer: Today's Mindset Quick Pill -->
+      <div class="sidebar-footer">
+        <div class="daily-mood-pill" id="openMoodPopupBtn">
+          <span id="sidebarMoodEmoji">🌿</span>
+          <div class="mood-text-wrap">
+            <small>Today's Mindset</small>
+            <strong id="sidebarMoodLabel">Peaceful</strong>
+          </div>
+          <span class="change-link">Check in →</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right / Main Area (Active View) -->
+    <main class="main-area">
+      <!-- Messenger Top Bar -->
+      <header class="top-bar">
+        <div class="left-bar-group">
+          <button class="menu-toggle-btn" id="menuToggleBtn" aria-label="Toggle Menu">
+            ☰
+          </button>
+          <div class="active-partner">
+            <div class="partner-avatar">🌸</div>
+            <div>
+              <h2>Tiểu Vân</h2>
+              <p class="partner-status">Active listening • Socratic guide • Never judges</p>
+            </div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <span class="pill-badge" id="secondBrainStatusBadge">🧠 Second Brain Active</span>
+          <button class="btn ghost-btn" id="newChatBtn">New Conversation</button>
+        </div>
+      </header>
+
+      <!-- View 1: The Chat (Main View with Tiểu Vân) -->
+      <section id="chatView" class="view-panel active">
+        <div class="chat-messages" id="chatMessages">
+          <div class="system-intro">
+            <div class="bot-badge-large">🌸</div>
+            <h3>Tiểu Vân is listening</h3>
+            <p>Every message is private. Tiểu Vân remembers your Second Brain triggers and reflects your daily mood without giving direct advice.</p>
+          </div>
+        </div>
+
+        <div class="chat-input-area">
+          <div class="suggestion-chips">
+            <button class="chip" data-msg="I'm feeling really overwhelmed today ⚡">I'm feeling overwhelmed today ⚡</button>
+            <button class="chip" data-msg="Can I just vent about work/school? 🌧️">Can I vent for a minute? 🌧️</button>
+            <button class="chip" data-msg="I feel like I'm never doing enough ☁️">I feel like I'm never doing enough ☁️</button>
+            <button class="chip" data-msg="Just need a quiet moment with you 🌿">Just need a quiet moment 🌿</button>
+          </div>
+          <form id="chatForm" class="input-form">
+            <input type="text" id="chatInput" placeholder="Message Tiểu Vân..." autocomplete="off">
+            <button type="submit" id="sendBtn" class="send-btn" aria-label="Send Message">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+              </svg>
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <!-- View 2: Second Brain (Profile Section) -->
+      <section id="secondBrainView" class="view-panel">
+        <div class="panel-header">
+          <h2>🧠 Your Second Brain</h2>
+          <p>A completely private text area for your personal background, traumas, triggers, and values. This is saved to Firestore and dynamically injected into Tiểu Vân's system prompt.</p>
+        </div>
+        <div class="second-brain-card">
+          <div class="sb-toolbar">
+            <span class="sb-hint">💡 Tap below to append sensitive topics or triggers:</span>
+            <span id="sbSaveStatus" class="saved-badge">Saved to Firestore ✓</span>
+          </div>
+
+          <div class="sb-quick-chips">
+            <button class="chip sb-chip" data-snippet="⚡ Conflict Trigger: When voices are raised, I tend to freeze and shut down.">⚡ Conflict Trigger</button>
+            <button class="chip sb-chip" data-snippet="🌧️ Burnout Trigger: I constantly feel guilty whenever I take time to rest.">🌧️ Burnout Trigger</button>
+            <button class="chip sb-chip" data-snippet="🤍 Needs: I respond best to patient silence and gentle questions.">🤍 Gentle Silence</button>
+            <button class="chip sb-chip" data-snippet="🌿 Sensitive: Please avoid giving toxic positivity or 'everything happens for a reason'.">🌿 No Toxic Positivity</button>
+          </div>
+
+          <textarea id="secondBrainInput" rows="10" placeholder="Write about what triggers your stress, childhood memories you carry, communication styles you dislike, or fears that keep you awake at night... Tiểu Vân reads this silently before every conversation so you never have to repeat your pain."></textarea>
+          
+          <div class="sb-footer">
+            <span class="char-count" id="sbCharCount">0 characters</span>
+            <button id="saveSecondBrainBtn" class="btn primary-btn">Save to Firestore</button>
+          </div>
+        </div>
+
+        <div class="preview-prompt-card">
+          <h4>🌸 How Tiểu Vân reads this context:</h4>
+          <p id="sbPromptPreview">"Tiểu Vân will hold your boundaries in gentle care. She will never push you into panic and will tailor her Socratic questions to honor your comfort."</p>
+        </div>
+      </section>
+
+      <!-- View 3: The Void (Anonymous Wall) -->
+      <section id="voidView" class="view-panel">
+        <div class="panel-header">
+          <div>
+            <h2>🌌 The Void</h2>
+            <p>An anonymous public feed where users release vents. No names. No comments. Only hugs ❤️.</p>
+          </div>
+          <button class="btn primary-btn" id="openVoidPostModal">Release a Vent</button>
+        </div>
+
+        <div class="void-feed" id="voidFeed">
+          <!-- Dynamic anonymous posts populated by Firestore/JS -->
+        </div>
+      </section>
+
+      <!-- View 4: Mood Tracker -->
+      <section id="moodView" class="view-panel">
+        <div class="panel-header">
+          <h2>🌸 Daily Mood Tracker</h2>
+          <p>Logging your mood dynamically shifts the tone of Tiểu Vân's AI prompt for the day.</p>
+        </div>
+
+        <div class="mood-grid" id="moodGrid">
+          <div class="mood-card" data-emoji="🌸" data-label="Joyful" data-tone="Warm, celebratory, cheerful lightness">
+            <span class="mood-emoji">🌸</span>
+            <strong>Joyful</strong>
+            <small>Light & grateful</small>
+          </div>
+          <div class="mood-card" data-emoji="🌿" data-label="Peaceful" data-tone="Gentle, grounding, calm silence">
+            <span class="mood-emoji">🌿</span>
+            <strong>Peaceful</strong>
+            <small>Tranquil & steady</small>
+          </div>
+          <div class="mood-card" data-emoji="✨" data-label="Hopeful" data-tone="Forward-looking, gentle spark">
+            <span class="mood-emoji">✨</span>
+            <strong>Hopeful</strong>
+            <small>Sensing sunrise</small>
+          </div>
+          <div class="mood-card" data-emoji="☕" data-label="Tired" data-tone="Soft presence, zero demands, restful">
+            <span class="mood-emoji">☕</span>
+            <strong>Tired</strong>
+            <small>Low energy</small>
+          </div>
+          <div class="mood-card" data-emoji="☁️" data-label="Anxious" data-tone="Grounding questions, slow pacing, deep security">
+            <span class="mood-emoji">☁️</span>
+            <strong>Anxious</strong>
+            <small>Racing mind</small>
+          </div>
+          <div class="mood-card" data-emoji="🌧️" data-label="Sad" data-tone="Tender compassion, soft holding, space to cry">
+            <span class="mood-emoji">🌧️</span>
+            <strong>Sad</strong>
+            <small>Heavy heart</small>
+          </div>
+          <div class="mood-card" data-emoji="⚡" data-label="Overwhelmed" data-tone="Step-by-step untangling, deep breath">
+            <span class="mood-emoji">⚡</span>
+            <strong>Overwhelmed</strong>
+            <small>Too much to carry</small>
+          </div>
+        </div>
+
+        <div class="mood-influence-banner">
+          <span class="influence-icon">✨</span>
+          <div>
+            <strong>Tiểu Vân's Adaptive Tone Today:</strong>
+            <p id="activeToneDescription">Gentle, grounding, calm silence and steady pace.</p>
+          </div>
+        </div>
+
+        <div class="mood-history-section">
+          <h3>Your Mood Journey</h3>
+          <div class="mood-history-list" id="moodHistoryList"></div>
+        </div>
+      </section>
+
+      <!-- View 5: Time Capsule -->
+      <section id="capsuleView" class="view-panel">
+        <div class="panel-header">
+          <div>
+            <h2>⏳ Time Capsule</h2>
+            <p>Write a letter to your future self. Stored securely in Firestore and sealed until its delivery date.</p>
+          </div>
+          <button class="btn primary-btn" id="openCapsuleModal">Write New Letter</button>
+        </div>
+
+        <div class="capsules-grid" id="capsulesGrid">
+          <!-- Sealed & unlocked letters -->
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Mood Check-in Modal Popup -->
+  <div id="moodModal" class="modal">
+    <div class="modal-card">
+      <div class="logo-badge">🌸</div>
+      <h2>How is your soul today?</h2>
+      <p class="subtitle">Checking in alters Tiểu Vân's conversational tone for the day.</p>
+      <div class="quick-mood-options" id="quickMoodSelector">
+        <button class="mood-pill-btn" data-emoji="🌸" data-label="Joyful">🌸 Joyful</button>
+        <button class="mood-pill-btn" data-emoji="🌿" data-label="Peaceful">🌿 Peaceful</button>
+        <button class="mood-pill-btn" data-emoji="✨" data-label="Hopeful">✨ Hopeful</button>
+        <button class="mood-pill-btn" data-emoji="☁️" data-label="Anxious">☁️ Anxious</button>
+        <button class="mood-pill-btn" data-emoji="🌧️" data-label="Sad">🌧️ Sad</button>
+        <button class="mood-pill-btn" data-emoji="⚡" data-label="Overwhelmed">⚡ Overwhelmed</button>
+      </div>
+      <div class="form-group" style="margin-top: 16px;">
+        <label for="moodNote">A brief note (optional)</label>
+        <input type="text" id="moodNote" placeholder="One sentence about what's happening...">
+      </div>
+      <div class="modal-actions">
+        <button class="btn secondary-btn" id="closeMoodModalBtn">Close</button>
+        <button class="btn primary-btn" id="saveQuickMoodBtn">Save Check-in</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Write Void Vent Modal -->
+  <div id="voidModal" class="modal">
+    <div class="modal-card">
+      <h2>Release into The Void</h2>
+      <p class="subtitle">Completely anonymous. No author or identity is saved.</p>
+      <div class="form-group">
+        <label for="voidVentInput">Your Vent</label>
+        <textarea id="voidVentInput" rows="5" placeholder="Let out whatever is heavy in your chest..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn secondary-btn" id="closeVoidModalBtn">Cancel</button>
+        <button class="btn primary-btn" id="submitVoidVentBtn">Release</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Write Time Capsule Modal -->
+  <div id="capsuleModal" class="modal">
+    <div class="modal-card">
+      <h2>Write to Your Future Self</h2>
+      <p class="subtitle">Stored in Firestore and tagged with your delivery date.</p>
+      <div class="form-group">
+        <label for="capsuleTitle">Title</label>
+        <input type="text" id="capsuleTitle" placeholder="e.g., A promise to myself">
+      </div>
+      <div class="form-group">
+        <label for="capsuleDuration">Delivery Time</label>
+        <select id="capsuleDuration">
+          <option value="30">1 Month Later</option>
+          <option value="90">3 Months Later</option>
+          <option value="180">6 Months Later</option>
+          <option value="365">1 Year Later</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="capsuleContent">Your Letter</label>
+        <textarea id="capsuleContent" rows="6" placeholder="Dear future me, right now I am feeling... Remember how strong you are..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn secondary-btn" id="closeCapsuleModalBtn">Cancel</button>
+        <button class="btn primary-btn" id="submitCapsuleBtn">Seal Capsule 💌</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase Configuration & Application Logic -->
+  <script src="firebase-config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
