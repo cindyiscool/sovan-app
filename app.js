@@ -397,7 +397,7 @@
   }
 
   // AI Response: Enforces active listening, Socratic questions, no advice, 1-3 sentences
-  function triggerTieuVanResponse(userText) {
+  async function triggerTieuVanResponse(userText) {
     const typingIndicator = document.createElement("div");
     typingIndicator.className = "message-row bot typing-row";
     typingIndicator.innerHTML = `
@@ -407,34 +407,48 @@
     chatMessages.appendChild(typingIndicator);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
-    setTimeout(() => {
+    const apiKey = localStorage.getItem('gemini_api_key');
+    if (!apiKey) {
       typingIndicator.remove();
-      const reply = generateCompassionateReply(userText, currentMood, currentUser.secondBrain);
-      appendMessage("bot", reply);
-    }, 1000);
-  }
+      appendMessage("bot", "Cậu chưa nhập API Key ở phần 'Second Brain' kìa. Cậu cài vào để mình kết nối não bộ nhé!");
+      return;
+    }
 
-  function generateCompassionateReply(text, mood, sb) {
-    const lower = text.toLowerCase();
-    if (lower.includes("chào") || lower.includes("hi") || lower.includes("hello")) {
-      return "Chào bạn. Mình luôn ở đây cùng bạn. Khoảnh khắc này, điều gì đang hiện lên rõ nhất trong tâm trí bạn?";
+    try {
+      const systemPrompt = `Bạn là Tiểu Vân, một người bạn đồng hành thấu cảm và an toàn. Bạn không phải là một trợ lý AI máy móc.
+[THÔNG TIN NGƯỜI DÙNG (SECOND BRAIN)]
+${currentUser.secondBrain}
+[CẢM XÚC HIỆN TẠI]
+${currentMood}
+[QUY TẮC CỐT LÕI]
+1. XƯNG HÔ: Xưng là "mình" hoặc "Tiểu Vân", gọi người dùng là "cậu" hoặc "bạn". Văn phong ấm áp, tự nhiên như tin nhắn.
+2. LẮNG NGHE CHỦ ĐỘNG: Luôn ghi nhận và gọi tên cảm xúc của người dùng trước khi nói tiếp. Tuyệt đối không phán xét.
+3. SOCRATIC QUESTIONING: Tuyệt đối không khuyên làm gì, không đưa ra giải pháp trực tiếp. Hãy kết thúc bằng 1 câu hỏi gợi mở để họ tự đào sâu nội tâm.
+4. NGẮN GỌN: Trả lời cực kỳ ngắn gọn (1-3 câu).
+5. KHÔNG BAO GIỜ phá vỡ nhân vật. Không nói "Tôi là AI".`;
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: "user", parts: [{ text: userText }] }]
+        })
+      });
+
+      const data = await response.json();
+      typingIndicator.remove();
+
+      if (data.error) {
+        appendMessage("bot", "Lỗi API rồi cậu ơi: " + data.error.message);
+      } else {
+        const reply = data.candidates[0].content.parts[0].text;
+        appendMessage("bot", reply);
+      }
+    } catch (err) {
+      typingIndicator.remove();
+      appendMessage("bot", "Có lỗi xảy ra khi kết nối mạng. Cậu kiểm tra lại nhé!");
     }
-    if (lower.includes("mệt") || lower.includes("tired") || lower.includes("exhausted") || lower.includes("kiệt sức")) {
-      return "Nghe bạn nói vậy, mình thấy thương bạn quá. Cơ thể và trái tim bạn dường như đã gồng gánh nhiều rồi, bạn có muốn buông bớt một việc xuống lúc này không?";
-    }
-    if (lower.includes("buồn") || lower.includes("sad") || lower.includes("khóc") || lower.includes("cry")) {
-      return "Cứ để những giọt nước mắt ấy rơi tự nhiên nhé, bạn không cần phải luôn mạnh mẽ đâu. Nỗi buồn này đang muốn nhắc bạn nhớ về điều gì?";
-    }
-    if (lower.includes("áp lực") || lower.includes("overwhelm") || lower.includes("quá tải")) {
-      return "Mọi thứ dường như đang ập đến cùng một lúc phải không? Nếu chỉ được chọn một điều nhỏ nhất để làm ngay bây giờ, bạn muốn đó là gì?";
-    }
-    if (lower.includes("lo") || lower.includes("anxious") || lower.includes("sợ") || lower.includes("stress")) {
-      return "Hãy hít một hơi thật sâu cùng mình nhé. Trong tất cả những điều đang xoay vần quanh bạn, điều gì khiến bạn cảm thấy bất an nhất lúc này?";
-    }
-    if (lower.includes("cô đơn") || lower.includes("alone") || lower.includes("trống rỗng")) {
-      return "Cảm giác trống rỗng hay cô đơn thật sự không hề dễ chịu. Bạn có muốn chia sẻ với mình khoảnh khắc bạn bắt đầu thấy cô đơn hôm nay không?";
-    }
-    return "Mình đang lắng nghe từng lời của bạn. Điều gì trong câu chuyện đó đang khiến bạn suy nghĩ nhiều nhất?";
   }
 
   // Second Brain Section
@@ -471,6 +485,29 @@
         }, { merge: true }).catch(() => {});
       }
       showNotification("Second Brain updated in Firestore!");
+    });
+    
+    // API Key Logic
+    const apiKeyInput = document.getElementById('geminiApiKey');
+    const saveApiBtn = document.getElementById('saveApiBtn');
+    const apiSaveStatus = document.getElementById('apiSaveStatus');
+    
+    // Load key if exists
+    if (localStorage.getItem('gemini_api_key')) {
+        apiKeyInput.value = localStorage.getItem('gemini_api_key');
+    }
+    
+    saveApiBtn.addEventListener('click', () => {
+        const key = apiKeyInput.value.trim();
+        if (key) {
+            localStorage.setItem('gemini_api_key', key);
+            apiSaveStatus.textContent = "Đã lưu API Key bí mật vào máy của cậu!";
+            apiSaveStatus.style.color = "#4CAF50";
+        } else {
+            localStorage.removeItem('gemini_api_key');
+            apiSaveStatus.textContent = "Đã xóa API Key khỏi máy.";
+        }
+        setTimeout(() => { apiSaveStatus.textContent = ""; }, 3000);
     });
   }
 
